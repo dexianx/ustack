@@ -348,8 +348,10 @@ void tcp_output(struct tcp_conn *c)
     switch (c->state) {
     case TCP_CLOSED:
     case TCP_LISTEN:
+        return;
     case TCP_SYN_SENT:
     case TCP_SYN_RCVD:
+        tcp_rearm_rtx(c);
         return;
     case TCP_TIME_WAIT:
         if (c->ack_now)
