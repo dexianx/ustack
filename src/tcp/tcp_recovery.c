@@ -365,6 +365,15 @@ static void on_tlp(struct tcp_conn *c)
     }
 }
 
+/* Zero-window probe, doubling as the RFC 9293 3.8.6.2.1 override for data held back by SWS avoidance. */
+static void on_persist(struct tcp_conn *c)
+{
+    seq_t wnd_end = c->snd_una + c->snd_wnd;
+    if (!seq_gt(wnd_end, c->snd_nxt) || !tcp_send_new(c, MIN((uint32_t)c->mss, wnd_end - c->snd_nxt)))
+        tcp_send_probe(c);
+    c->backoff = (uint8_t)MIN(c->backoff + 1, MAX_BACKOFF);
+}
+
 void tcp_rtx_timer_fired(struct timer *t)
 {
     struct tcp_conn *c = container_of(t, struct tcp_conn, rtx_timer);
@@ -379,8 +388,7 @@ void tcp_rtx_timer_fired(struct timer *t)
         on_tlp(c);
         break;
     case RTX_PERSIST:
-        tcp_send_probe(c);
-        c->backoff = (uint8_t)MIN(c->backoff + 1, MAX_BACKOFF);
+        on_persist(c);
         break;
     case RTX_RTO:
         on_rto(c);
@@ -414,8 +422,7 @@ void tcp_rearm_rtx(struct tcp_conn *c)
     }
 
     if (c->snd_una == c->snd_nxt) {
-        bool blocked = tcp_can_send_data(c->state) && !c->snd_wnd &&
-                       seq_lt(c->snd_nxt, tcp_snd_data_end(c));
+        bool blocked = tcp_can_send_data(c->state) && seq_lt(c->snd_nxt, tcp_snd_data_end(c));
         if (!blocked) {
             timer_cancel(&st->wheel, &c->rtx_timer);
             c->rtx_mode = RTX_NONE;
