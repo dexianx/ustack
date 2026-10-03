@@ -164,16 +164,20 @@ static void forget_rec(struct tcp_conn *c, const struct tx_rec *r)
         c->lost_bytes -= r->len;
 }
 
+/* Karn: no sequence-based RTT sample when the ACK covers retransmitted data. */
 static uint64_t advance_una(struct tcp_conn *c, seq_t ack)
 {
     uint64_t rtt_xmit = 0;
+    bool karn = false;
     while (c->txq.n) {
         struct tx_rec *r = txq_at(&c->txq, 0);
         seq_t end = r->seq + r->len;
         if (seq_le(end, ack)) {
             if (!(r->flags & REC_SACKED)) {
                 rack_update(c, r);
-                if (!(r->flags & REC_RETRANS))
+                if (r->flags & REC_RETRANS)
+                    karn = true;
+                else
                     rtt_xmit = MAX(rtt_xmit, r->xmit_ns);
             }
             forget_rec(c, r);
@@ -200,7 +204,7 @@ static uint64_t advance_una(struct tcp_conn *c, seq_t ack)
         ring_release_if_empty(&c->sndbuf);
         c->snd_buf_seq = buf_end;
     }
-    return rtt_xmit;
+    return karn ? 0 : rtt_xmit;
 }
 
 static uint64_t apply_sack(struct tcp_conn *c, seq_t lo, seq_t hi)
@@ -239,6 +243,18 @@ static bool dupack_loss(struct tcp_conn *c, const struct tcp_seg *seg, bool wind
         return false;
     struct tx_rec *r = txq_at(&c->txq, 0);
     if (r->flags & (REC_SACKED | REC_LOST))
+        return false;
+    mark_lost(c, 0, r);
+    return true;
+}
+
+/* RFC 6582: without SACK, a partial ACK during recovery exposes the next hole. */
+static bool partial_ack_loss(struct tcp_conn *c)
+{
+    if (c->phase != CC_RECOVERY || !c->txq.n)
+        return false;
+    struct tx_rec *r = txq_at(&c->txq, 0);
+    if (r->flags & (REC_LOST | REC_RETRANS))
         return false;
     mark_lost(c, 0, r);
     return true;
@@ -286,6 +302,8 @@ void tcp_ack_received(struct tcp_conn *c, const struct tcp_seg *seg)
 
     if (c->phase != CC_OPEN && acked && seq_ge(c->snd_una, c->recover))
         c->phase = CC_OPEN;
+    else if (!c->sack_ok && acked)
+        lost |= partial_ack_loss(c);
     if (lost)
         enter_recovery(c);
     if (acked && c->phase != CC_RECOVERY && c->state >= TCP_ESTABLISHED) {
