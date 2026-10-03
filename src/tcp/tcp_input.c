@@ -165,17 +165,11 @@ static void syn_sent_input(struct tcp_conn *c, struct tcp_seg *seg)
     tcp_notify_open(c);
 }
 
+/* RFC 9293 3.10.7.4, with Linux's inclusive right edge so zero-window ACKs are processed. */
 static bool acceptable(const struct tcp_conn *c, const struct tcp_seg *seg)
 {
-    uint32_t wnd = seq_gt(c->rcv_adv, c->rcv_nxt) ? c->rcv_adv - c->rcv_nxt : 0;
-    uint32_t span = seg_span(seg);
-    seq_t end = c->rcv_nxt + wnd;
-    if (span == 0)
-        return wnd == 0 ? seg->seq == c->rcv_nxt : seq_in(seg->seq, c->rcv_nxt, end) ||
-                                                       seg->seq == c->rcv_nxt;
-    if (wnd == 0)
-        return false;
-    return seq_in(seg->seq, c->rcv_nxt, end) || seq_in(seg->seq + span - 1, c->rcv_nxt, end);
+    seq_t right = seq_max(c->rcv_adv, c->rcv_nxt);
+    return seq_ge(seg->seq + seg_span(seg), c->rcv_nxt) && seq_le(seg->seq, right);
 }
 
 static void trim_to_window(struct tcp_conn *c, struct tcp_seg *seg)

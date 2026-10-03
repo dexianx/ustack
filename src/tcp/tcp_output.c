@@ -181,7 +181,8 @@ static void xmit(struct tcp_conn *c, seq_t seq, uint8_t flags, uint32_t data_len
 
 void tcp_send_ack(struct tcp_conn *c)
 {
-    xmit(c, c->snd_nxt, TH_ACK, 0, 0);
+    seq_t wnd_end = c->snd_una + c->snd_wnd;
+    xmit(c, seq_lt(wnd_end, c->snd_nxt) ? wnd_end : c->snd_nxt, TH_ACK, 0, 0);
 }
 
 void tcp_send_probe(struct tcp_conn *c)

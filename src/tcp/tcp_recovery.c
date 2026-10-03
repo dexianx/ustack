@@ -249,7 +249,8 @@ void tcp_ack_received(struct tcp_conn *c, const struct tcp_seg *seg)
     seq_t ack = seg->ack;
     uint32_t wnd = seg->wnd << (seg->flags & TH_SYN ? 0 : c->snd_wscale);
     bool window_update = false;
-    if (seq_lt(c->snd_wl1, seg->seq) || (c->snd_wl1 == seg->seq && seq_le(c->snd_wl2, ack))) {
+    if (seq_gt(ack, c->snd_una) || seq_lt(c->snd_wl1, seg->seq) ||
+        (c->snd_wl1 == seg->seq && wnd > c->snd_wnd)) {
         window_update = wnd != c->snd_wnd;
         c->snd_wnd = wnd;
         c->snd_wl1 = seg->seq;
