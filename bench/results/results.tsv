@@ -1,0 +1,20 @@
+ping RTT (avg of 2000)	9	9	15	us
+download 1 GB	10.23	10.16	10.58	Gbit/s
+upload 1 GB (discard)	21.33	20.78	21.6	Gbit/s
+download 1 GB, TSO/GSO offload	68.78	42.77	72.9	Gbit/s
+upload 1 GB, TSO/GSO offload	22.58	17.01	29	Gbit/s
+req/s, 100 conns, 1 shard(s)	7.101e+05	6.652e+05	7.697e+05	req/s
+req/s, 1000 conns, 1 shard(s)	7.481e+05	7.239e+05	7.525e+05	req/s
+req/s, 100 conns, 2 shard(s)	9.169e+05	8.308e+05	9.402e+05	req/s
+req/s, 1000 conns, 2 shard(s)	1.228e+06	1.206e+06	1.233e+06	req/s
+req/s, 100 conns, 4 shard(s)	8.617e+05	7.567e+05	8.738e+05	req/s
+req/s, 1000 conns, 4 shard(s)	1.255e+06	1.137e+06	1.339e+06	req/s
+p50 latency, 100 conns	118	117	135	us
+p99 latency, 100 conns	328	239	4.202e+04	us
+req/s, 10000 concurrent conns, 4 shards	7.158e+05	5.856e+05	8.536e+05	req/s
+conn/s, 1 shard(s)	5.958e+04	4.936e+04	6.14e+04	conn/s
+conn/s, 4 shard(s)	5.812e+04	5.466e+04	5.842e+04	conn/s
+100 MB at 1% loss, ustack	0.47	0.38	0.8	s
+100 MB at 5% loss, ustack	15.74	15.3	19.39	s
+100 MB at 10% loss, ustack	149.5	140.2	155.5	s
+RSS per established connection (10k held)	1.042e+04	1.039e+04	1.047e+04	bytes

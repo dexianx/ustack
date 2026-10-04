@@ -1,0 +1,3 @@
+100 MB at 1% loss, Linux kernel	0.86	0.51	0.89	s
+100 MB at 5% loss, Linux kernel	12.04	11.28	15.59	s
+100 MB at 10% loss, Linux kernel	170.2	168.2	209.6	s
