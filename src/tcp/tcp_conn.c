@@ -204,9 +204,7 @@ void tcp_table_free(struct us_stack *st)
 {
     for (uint32_t i = 0; i <= st->tcp.mask; i++) {
         while (st->tcp.buckets[i]) {
-            struct tcp_conn *c = st->tcp.buckets[i];
-            c->attached = false;
-            tcp_conn_destroy(c, US_OK);
+            tcp_conn_destroy(st->tcp.buckets[i], US_ERESET);
         }
     }
     for (struct tcp_conn *c = st->dead; c; c = c->dead_next)
