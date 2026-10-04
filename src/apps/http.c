@@ -27,8 +27,8 @@ struct http_conn {
 };
 
 struct request {
-    const char *method;
-    const char *path;
+    char method[8];
+    char path[256];
     uint64_t content_length;
     bool keep_alive;
 };
@@ -72,6 +72,15 @@ static void pump_body(struct us_sock *s, struct http_conn *h)
     h->phase = READ_HEAD;
 }
 
+static bool copy_token(char *dst, size_t cap, const char *src)
+{
+    size_t n = strlen(src);
+    if (n >= cap)
+        return false;
+    memcpy(dst, src, n + 1);
+    return true;
+}
+
 static bool parse_request(char *head, struct request *req)
 {
     char *line_end = strstr(head, "\r\n");
@@ -83,8 +92,9 @@ static bool parse_request(char *head, struct request *req)
     if (!sp1 || !sp2)
         return false;
     *sp1 = *sp2 = '\0';
-    req->method = head;
-    req->path = sp1 + 1;
+    if (!copy_token(req->method, sizeof(req->method), head) ||
+        !copy_token(req->path, sizeof(req->path), sp1 + 1))
+        return false;
     req->keep_alive = strcmp(sp2 + 1, "HTTP/1.0") != 0;
     req->content_length = 0;
 
