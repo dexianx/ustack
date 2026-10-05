@@ -1,0 +1,38 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -j CC=${{ matrix.cc }}
+      - run: ./build/test_unit
+      - run: ./build/sim --seeds 2000
+
+  sanitizers:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -j SANITIZE=1 CC=clang
+      - run: ./build-san/test_unit
+      - run: ./build-san/sim --seeds 500
+
+  fuzz:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make fuzz
+      - run: mkdir -p corpus && ./build-fuzz/fuzz_stack -max_total_time=300 corpus
+
+  interop:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y wrk tshark netcat-openbsd
+      - run: make -j BUILD=build-linux
+      - run: sudo ./tests/integration/run.sh
