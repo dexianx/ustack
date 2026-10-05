@@ -3,7 +3,7 @@
 #include "core/util.h"
 #include "tcp/tcp.h"
 
-#define TLP_MIN_NS      (10 * NSEC_PER_MSEC)
+#define TLP_MIN_NS      (2 * NSEC_PER_MSEC)
 #define TLP_DELACK_NS   (200 * NSEC_PER_MSEC)
 #define MAX_BACKOFF     12
 #define CWND_MAX        (1u << 30)
@@ -349,15 +349,15 @@ static void on_rto(struct tcp_conn *c)
     c->tlp_out = false;
 }
 
-/* RFC 8985 7.3: probe with new data if possible, else the last segment. */
+/*
+ * RFC 8985 7.3 prefers probing with new data, but a receiver may hold the ACK for
+ * in-order data (Linux defers it up to 200 ms when the window would shrink). A
+ * retransmission of the last segment is a duplicate, which every stack ACKs at once.
+ */
 static void on_tlp(struct tcp_conn *c)
 {
     c->st->stats.tcp_tlp++;
     c->tlp_out = true;
-    seq_t wnd_end = c->snd_una + c->snd_wnd;
-    if (tcp_can_send_data(c->state) && seq_lt(c->snd_nxt, tcp_snd_data_end(c)) &&
-        seq_lt(c->snd_nxt, wnd_end) && tcp_send_new(c, MIN((uint32_t)c->mss, wnd_end - c->snd_nxt)))
-        return;
     if (c->txq.n) {
         struct tx_rec *r = txq_at(&c->txq, c->txq.n - 1);
         if (!(r->flags & REC_SACKED))
